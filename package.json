@@ -1,0 +1,14 @@
+{
+  "name": "excel-product-filler-app",
+  "version": "1.0.0",
+  "description": "Full-Stack Web Application to Automate Excel Spreadsheet Enrichment via CSV and Web Scraping",
+  "scripts": {
+    "dev:backend": "node --watch backend/server.js",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "start": "node backend/server.js"
+  },
+  "keywords": ["excel", "csv", "web-scraping", "json-ld", "playwright", "exceljs"],
+  "author": "",
+  "license": "ISC"
+}
