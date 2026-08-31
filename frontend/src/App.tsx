@@ -59,6 +59,11 @@ export function App() {
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [isLoadingSample, setIsLoadingSample] = useState(false);
 
+  // A job is an immutable processing/export snapshot. Changing any setup
+  // input after it exists must require a new run; otherwise Step 8 can show
+  // the current UI mapping while Step 9 exports the old job mapping.
+  const invalidateActiveJob = () => setActiveJob(null);
+
   // Theme State (Dark / Light)
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('app_theme');
@@ -326,6 +331,7 @@ export function App() {
                   setCsvFilename(filename);
                   setPrimaryKey(key);
                   setPrimaryKeyMapping(prev => ({ ...prev, csvKey: key }));
+                  invalidateActiveJob();
                 }}
                 onUpdateSkipRules={setSkipRules}
                 onNext={() => goToStep(2)}
@@ -345,10 +351,12 @@ export function App() {
                   setTemplateId(tplId);
                   setSelectedSheet(sheetName);
                   setFieldMappings([]);
+                  invalidateActiveJob();
                 }}
                 onSelectSheet={(sheetName) => {
                   setSelectedSheet(sheetName);
                   setFieldMappings([]);
+                  invalidateActiveJob();
                 }}
                 onNext={() => goToStep(3)}
                 onBack={() => setCurrentStep(1)}
@@ -365,6 +373,7 @@ export function App() {
                 onUpdateMapping={(mapping) => {
                   setPrimaryKeyMapping(mapping);
                   if (mapping.csvKey) setPrimaryKey(mapping.csvKey);
+                  invalidateActiveJob();
                 }}
                 onNext={() => goToStep(4)}
                 onBack={() => setCurrentStep(2)}
@@ -380,8 +389,14 @@ export function App() {
                 excelSheet={currentSheetInfo}
                 primaryKeyMapping={primaryKeyMapping}
                 skipWebExtraction={skipWebExtraction}
-                onUpdateUrls={setUrlsMap}
-                onSetSkipWebExtraction={setSkipWebExtraction}
+                onUpdateUrls={(urls) => {
+                  setUrlsMap(urls);
+                  invalidateActiveJob();
+                }}
+                onSetSkipWebExtraction={(skip) => {
+                  setSkipWebExtraction(skip);
+                  invalidateActiveJob();
+                }}
                 onNext={() => goToStep(5)}
                 onBack={() => setCurrentStep(3)}
               />
@@ -396,7 +411,10 @@ export function App() {
                 customSelectors={customSelectors}
                 standardFields={standardFields}
                 skipWebExtraction={skipWebExtraction}
-                onUpdateMappings={setFieldMappings}
+                onUpdateMappings={(mappings) => {
+                  setFieldMappings(mappings);
+                  invalidateActiveJob();
+                }}
                 onUpdateCustomSelectors={setCustomSelectors}
                 onNext={() => goToStep(6)}
                 onBack={() => setCurrentStep(4)}
@@ -432,7 +450,7 @@ export function App() {
             {currentStep === 8 && activeJob && (
               <Step8ReviewResults
                 job={activeJob}
-                fieldMappings={fieldMappings}
+                fieldMappings={activeJob.fieldMappings}
                 onJobUpdated={setActiveJob}
                 onNext={() => goToStep(9)}
                 onBack={() => setCurrentStep(7)}
@@ -443,7 +461,7 @@ export function App() {
             {currentStep === 9 && activeJob && (
               <Step9ExportExcel
                 job={activeJob}
-                fieldMappings={fieldMappings}
+                fieldMappings={activeJob.fieldMappings}
                 excelFilename={excelFilename}
                 onResetToNewJob={handleResetToNewJob}
                 onBack={() => setCurrentStep(8)}
