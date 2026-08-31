@@ -2,6 +2,30 @@ import ExcelJS from 'exceljs';
 import Papa from 'papaparse';
 
 /**
+ * Returns a displayable cell value without using ExcelJS's `cell.text` getter.
+ *
+ * ExcelJS can throw from that getter for a merged follower whose merge master
+ * is empty (`MergeValue.toString` calls `null.toString()`). Reading `value`
+ * directly is safe for both regular and merged cells.
+ */
+function getCellText(cell) {
+  const value = cell?.value;
+
+  if (value === null || value === undefined) return '';
+  if (typeof value !== 'object') return String(value);
+  if (value instanceof Date) return value.toString();
+
+  if (Array.isArray(value.richText)) {
+    return value.richText.map(part => part?.text ?? '').join('');
+  }
+  if (value.text !== null && value.text !== undefined) return String(value.text);
+  if (value.result !== null && value.result !== undefined) return String(value.result);
+  if (value.error !== null && value.error !== undefined) return String(value.error);
+
+  return '';
+}
+
+/**
  * Parses raw CSV string or buffer into structured objects and detects columns
  */
 export function parseCsv(csvBufferOrString) {
@@ -84,7 +108,7 @@ export async function parseExcelToDataset(excelBuffer) {
   worksheet.eachRow((row, rowNumber) => {
     if (headers.length === 0) {
       row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-        const val = (cell.text || String(cell.value || '')).trim();
+        const val = getCellText(cell).trim();
         if (val) {
           headers.push(val);
           colIndexMap.set(colNumber, val);
@@ -108,7 +132,7 @@ export async function parseExcelToDataset(excelBuffer) {
       let hasData = false;
       colIndexMap.forEach((headerName, colIndex) => {
         const cell = row.getCell(colIndex);
-        const textVal = cell.text || (cell.value !== null && cell.value !== undefined ? String(cell.value) : '');
+        const textVal = getCellText(cell);
         rowData[headerName] = textVal;
         if (textVal && textVal.trim() !== '') hasData = true;
       });
@@ -237,7 +261,7 @@ export async function inspectExcel(excelBuffer) {
       if (headers.length === 0) {
         const cells = [];
         row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-          const val = cell.text || String(cell.value || '');
+          const val = getCellText(cell);
           if (val.trim()) {
             cells.push({ col: colNumber, name: val.trim() });
           }
@@ -261,7 +285,7 @@ export async function inspectExcel(excelBuffer) {
         let hasData = false;
         headers.forEach(({ col, name }) => {
           const cell = row.getCell(col);
-          const val = cell.text || (cell.value !== null && cell.value !== undefined ? String(cell.value) : '');
+          const val = getCellText(cell);
           rowData[name] = val;
           if (val.trim()) hasData = true;
 
@@ -575,7 +599,7 @@ export async function generatePopulatedExcel(templateBuffer, options) {
   worksheet.eachRow((row, rowNumber) => {
     if (headerMap.size === 0) {
       row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-        const text = (cell.text || String(cell.value || '')).trim();
+        const text = getCellText(cell).trim();
         if (text) {
           headerMap.set(text.toLowerCase(), { colNumber, originalName: text });
         }
@@ -620,19 +644,19 @@ export async function generatePopulatedExcel(templateBuffer, options) {
     existingRows.push(r);
 
     if (excelKeyColIndex) {
-      const v = (row.getCell(excelKeyColIndex).text || String(row.getCell(excelKeyColIndex).value || '')).trim().toLowerCase();
+      const v = getCellText(row.getCell(excelKeyColIndex)).trim().toLowerCase();
       if (v) existingKeyMap.set(v, r);
     }
     if (templateSkuCol) {
-      const v = (row.getCell(templateSkuCol).text || String(row.getCell(templateSkuCol).value || '')).trim().toLowerCase();
+      const v = getCellText(row.getCell(templateSkuCol)).trim().toLowerCase();
       if (v) existingSkuMap.set(v, r);
     }
     if (templateTitleCol) {
-      const v = (row.getCell(templateTitleCol).text || String(row.getCell(templateTitleCol).value || '')).trim().toLowerCase();
+      const v = getCellText(row.getCell(templateTitleCol)).trim().toLowerCase();
       if (v) existingTitleMap.set(v, r);
     }
     if (templateUrlCol) {
-      const v = (row.getCell(templateUrlCol).text || String(row.getCell(templateUrlCol).value || '')).trim().toLowerCase();
+      const v = getCellText(row.getCell(templateUrlCol)).trim().toLowerCase();
       if (v) existingUrlMap.set(v, r);
     }
   }
@@ -641,7 +665,7 @@ export async function generatePopulatedExcel(templateBuffer, options) {
   const columnMap = new Map(); // headerName.toLowerCase() -> colIndex
 
   headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-    const text = (cell.text || String(cell.value || '')).trim().toLowerCase();
+    const text = getCellText(cell).trim().toLowerCase();
     columnMap.set(text, colNumber);
   });
 
@@ -742,7 +766,7 @@ export async function generatePopulatedExcel(templateBuffer, options) {
         cell.value = Boolean(finalVal);
       } else {
         const valStr = finalVal !== null && finalVal !== undefined ? String(finalVal).trim() : '';
-        const existingText = (cell.text || String(cell.value || '')).trim();
+        const existingText = getCellText(cell).trim();
         if (!valStr && existingText) {
           // Preserve existing template value
         } else {
