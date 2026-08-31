@@ -137,6 +137,8 @@ class JobManager extends EventEmitter {
       csvData,
       excelInfo,
       excelTemplateBuffer: data.excelTemplateBuffer || null,
+      // Keep the worksheet chosen in Step 2 so export writes to the same sheet.
+      sheetName,
       primaryKeyMapping,
       fieldMappings,
       customSelectors,

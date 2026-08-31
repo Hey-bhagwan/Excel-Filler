@@ -428,7 +428,9 @@ router.post('/jobs/:id/export', async (req, res, next) => {
     }
 
     const populatedBuffer = await generatePopulatedExcel(templateBuffer, {
-      sheetName: job.excelInfo?.sheets?.[0]?.name,
+      // Use the worksheet selected during the wizard; only fall back to the
+      // first worksheet for older jobs that do not have a saved selection.
+      sheetName: job.sheetName || job.excelInfo?.sheets?.[0]?.name,
       fieldMappings: job.fieldMappings,
       productsData: job.items,
       primaryKeyMapping: job.primaryKeyMapping,
